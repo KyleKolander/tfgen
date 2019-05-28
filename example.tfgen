@@ -1,0 +1,44 @@
+terraform {
+  backend "s3" {
+    bucket         = "terraform-state-[accountID]-[region]"
+    key            = "[app].tfstate"
+    region         = "[region]"
+    profile        = "[profile]"
+    dynamodb_table = "terraform-state-lock-[accountID]-[region]"
+  }
+}
+
+locals {
+  profile     = "[profile]"
+  region      = "[region]"
+  bucket_name = "[app]-[accountID]-[profile]-[region]"
+}
+
+provider "aws" {
+  profile = "${local.profile}"
+  region  = "${local.region}"
+  version = "~> 2.12"
+}
+
+resource "aws_s3_bucket" "b" {
+  bucket = "${local.bucket_name}"
+  acl    = "private"
+
+  versioning {
+    enabled = true
+  }
+
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "AES256"
+      }
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "b" {
+  bucket              = "${aws_s3_bucket.b.id}"
+  block_public_acls   = true
+  block_public_policy = true
+}
